@@ -1286,9 +1286,15 @@ kbd { font-family: var(--font-body); font-weight: 700; background: var(--card); 
   function fitPanel() {
     panel.style.transform = ''; panel.style.width = ''; panel.style.maxWidth = '';
     overlay.style.paddingLeft = ''; overlay.style.paddingTop = '';
-    if (!panelSide || overlay.hidden) return;
+    if (overlay.hidden) return;
     const cw = canvas.clientWidth, ch = canvas.clientHeight;
     if (!cw || !ch) return;
+    if (!panelSide) {
+      // title / game over cards: shrink to fit when the game screen is small (an upright phone)
+      const s0 = Math.min(1, (ch - 12) / panel.offsetHeight, (cw - 12) / panel.offsetWidth);
+      if (s0 < 1) { panel.style.transformOrigin = 'center center'; panel.style.transform = 'scale(' + s0 + ')'; }
+      return;
+    }
     const k = cw / W;                                  // screen px per game unit
     const left = (maiX() + 335 * S + 8) * k;           // just right of her hands and crown
     const right = Math.max(6, cw * 0.02), top = 6 + hudDrop * k, bottom = 6;
@@ -1304,6 +1310,7 @@ kbd { font-family: var(--font-body); font-weight: 700; background: var(--card); 
     }
   }
   window.addEventListener('resize', () => requestAnimationFrame(fitPanel));
+  setTimeout(fitPanel, 0); if (document.fonts) document.fonts.ready.then(() => fitPanel());
 
   function chooseMode(k) {
     modeKey = k; MODE = MODES[k];

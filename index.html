@@ -1254,7 +1254,7 @@ kbd { font-family: var(--font-body); font-weight: 700; background: var(--card); 
   const MODES = {
     easy:   { name: 'かんたん',   lives: 5, speed: 0.8, count: 0.7, ups: 2, upSlow: 0.75, warnAll: true,  jump: 1.06, hold: 0.36 },
     normal: { name: 'ふつう',     lives: 3, speed: 1.0, count: 1.0, ups: 1, upSlow: 1,    warnAll: false, jump: 1,    hold: 0.32 },
-    hard:   { name: 'むずかしい', lives: 1, speed: 1.2, count: 1.5, ups: 1, upSlow: 1,    warnAll: false, jump: 1,    hold: 0.32, noWarnFrom: 5, upFrom: 6, restart: true, wild: true },
+    hard:   { name: 'むずかしい', lives: 1, speed: 1.2, count: 1.5, ups: 1, upSlow: 1,    warnAll: false, jump: 1,    hold: 0.32, noWarnFrom: 5, restart: true, wild: true },
   };
   let modeKey = 'normal', MODE = MODES.normal, stageN = 10;
   const bestKey = (k) => k === 'normal' ? 'pottori-dino-best' : 'pottori-dino-best-' + k;
@@ -1341,7 +1341,7 @@ kbd { font-family: var(--font-body); font-weight: 700; background: var(--card); 
     stageN = st.special ? st.n : Math.round(st.n * MODE.count);
     speed = st.base * (st.special ? 1 : MODE.speed); nextGap = 160;
     makeScenery();
-    // 1UPs: easy has two per stage, hard only from stage 7; once taken they don't come back on a retry
+    // 1UPs: easy has two per stage, normal and hard one; once taken they don't come back on a retry
     const upSlots = [];
     if (MODE.upFrom === undefined || stageIdx >= MODE.upFrom)
       for (let k = 0; k < MODE.ups; k++) if (!upTaken.has(stageIdx + '-' + k)) upSlots.push(k);

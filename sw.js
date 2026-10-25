@@ -1,6 +1,6 @@
 // マイちゃんのダイエット: keeps the game on the device so it plays without a connection.
 // Change VERSION whenever the game files are updated, so phones pick up the new version.
-const VERSION = 'mai-diet-v40';
+const VERSION = 'mai-diet-v41';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {

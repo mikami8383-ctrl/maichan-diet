@@ -1,6 +1,6 @@
 // マイちゃんのダイエット: keeps the game on the device so it plays without a connection.
 // Change VERSION whenever the game files are updated, so phones pick up the new version.
-const VERSION = 'mai-diet-v41';
+const VERSION = 'mai-diet-v42';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
@@ -21,6 +21,8 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   // the promotion video streams straight from the site (phones ask for it in pieces)
   if (url.pathname.endsWith('.mp4')) return;
+  // the ranking lives on Google: always ask it fresh, never keep a copy
+  if (url.origin !== self.location.origin && /(^|\.)(google|googleusercontent)\.com$/.test(url.hostname)) return;
   // the game page: try the network first so updates arrive, fall back to the saved copy offline
   if (req.mode === 'navigate') {
     e.respondWith(

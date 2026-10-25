@@ -139,6 +139,16 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
 .wgrid { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; min-height: 64px; align-content: flex-start; }
 .wgrid .chip { font-size: 14px; padding: 5px 11px; }
 .chip.lock img { display: block; height: 30px; max-width: 64px; margin: 0 auto 1px; object-fit: contain; }
+.rankbox { display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 6px; pointer-events: auto; }
+.rankbox input { font-family: var(--font-body); font-weight: 700; font-size: 15px; width: 9em; padding: 5px 9px; border: 2px solid var(--leaf-deep); border-radius: 10px; background: #FFFFFF; color: #23401A; color-scheme: light; -webkit-user-select: text; user-select: text; }
+.rankbox .mode { font-size: 15px; padding: 5px 12px; }
+.rankmsg { width: 100%; font-size: 13px; font-weight: 700; color: #B4501F; min-height: 1.2em; }
+.ranklist { min-width: 15em; margin: 6px auto 4px; border-collapse: collapse; font-size: 15px; }
+.ranklist td { padding: 3px 8px; border-bottom: 1px solid #D5E2CC; text-align: left; }
+.ranklist td.r { font-weight: 900; width: 2.2em; text-align: center; }
+.ranklist td.s { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+.ranklist tr.top1 td.r { color: #B88A00; } .ranklist tr.top2 td.r { color: #6F7A86; } .ranklist tr.top3 td.r { color: #9C5B26; }
+.rankbtn { background: #E6F3FF !important; color: #164A6E !important; border-color: #3E8DC8 !important; }
 .wpage { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 13px; font-weight: 700; color: var(--ink-soft); }
 .wpage button { font-family: var(--font-display); font-weight: 900; font-size: 14px; border-radius: 10px; padding: 2px 12px; cursor: pointer; border: 2px solid var(--leaf-deep); background: #FFFFFF; color: var(--ink); }
 .wpage button[disabled] { opacity: 0.35; cursor: default; }
@@ -2444,10 +2454,64 @@ c.save();c.lineJoin=c.lineCap='round';const cx=190;
     if (!row) return;
     row.innerHTML = 'メダル ' + medals.map((m, i) => '<span class="medal m' + m + '" title="ステージ' + (i + 1) + '">' + (i + 1) + '</span>').join('') +
       '<button type="button" class="wearbtn" id="wearBtn">きせかえ</button>' +
-      '<button type="button" class="wearbtn pvbtn" id="pvBtn">▶ PVを見る</button>';
+      '<button type="button" class="wearbtn pvbtn" id="pvBtn">▶ PVを見る</button>' +
+      (RANK_URL && rankOK ? '<button type="button" class="wearbtn rankbtn" id="rankBtn">🏆 ランキング</button>' : '');
     document.getElementById('wearBtn').addEventListener('click', (e) => { e.stopPropagation(); showWardrobe(); });
     document.getElementById('pvBtn').addEventListener('click', (e) => { e.stopPropagation(); openPV(); });
+    const rb = document.getElementById('rankBtn'); if (rb) rb.addEventListener('click', (e) => { e.stopPropagation(); showRanking(); });
   }
+  // ---- ranking (everyone's scores, kept in the owner's Google spreadsheet) ----
+  const RANK_URL = 'https://script.google.com/macros/s/AKfycbwOOWAi-5E1xSv7S7Dh_nq4KBeXVSD9XGTo5DemNLozxuPTguL7UST4RmFAgWY9SHAo/exec';
+  const RANK_MODES = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
+  let rankTab = 'normal', rankOK = false;   // rankOK: the ranking sheet answered (some places, like the claude.ai page, cannot reach it)
+  const savedName = () => { try { return localStorage.getItem('mai-name') || ''; } catch (e) { return ''; } };
+  const rankForm = () => RANK_URL && rankOK && !MODE.practice
+    ? '<div class="rankbox"><input id="rankName" maxlength="10" placeholder="ニックネーム" autocomplete="off"><button type="button" class="mode normal" id="rankSend">ランキングに のせる</button><div class="rankmsg" id="rankMsg"></div></div>' : '';
+  function wireRankForm(stageNo) {
+    const inp = document.getElementById('rankName'), btn = document.getElementById('rankSend'), msg = document.getElementById('rankMsg');
+    if (!inp) return;
+    inp.value = savedName();
+    for (const ev of ['pointerdown', 'keydown', 'keyup']) inp.addEventListener(ev, (e) => e.stopPropagation());
+    btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const name = inp.value.replace(/[<>]/g, '').trim().slice(0, 10);
+      if (!name) { msg.textContent = 'ニックネームを いれてね'; inp.focus(); return; }
+      try { localStorage.setItem('mai-name', name); } catch (err) {}
+      btn.disabled = true; msg.textContent = 'おくっています…';
+      fetch(RANK_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ mode: modeKey, name, score: score(), stage: stageNo }) })
+        .then(() => { msg.textContent = 'ランキングに のせたよ！'; rankTab = modeKey; })
+        .catch(() => { msg.textContent = 'いまは おくれませんでした'; btn.disabled = false; });
+    });
+  }
+  function showRanking() {
+    state = 'rank';
+    const tabs = RANK_MODES.map(([k, n]) => '<button type="button" class="wtab' + (k === rankTab ? ' on' : '') + '" data-rt="' + k + '">' + n + '</button>').join('');
+    showPanel('<div class="big">🏆 ランキング</div><div class="wtabs" style="pointer-events:auto">' + tabs + '</div>' +
+      '<div id="rankBody" class="hint">よみこみ中…</div>' +
+      '<div class="foot" style="display:flex;justify-content:center;margin-top:4px;pointer-events:auto"><button type="button" class="mode normal" data-back>もどる</button></div>');
+    panel.querySelectorAll('[data-rt]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); rankTab = b.dataset.rt; sfx.pop(); showRanking(); }));
+    panel.querySelector('[data-back]').addEventListener('click', (e) => { e.stopPropagation(); showTitle(); });
+    const body = document.getElementById('rankBody'), want = rankTab;
+    fetch(RANK_URL).then((r) => r.json()).then((data) => {
+      if (state !== 'rank' || rankTab !== want) return;
+      const list = (data && data[want]) || [];
+      body.textContent = '';
+      if (!list.length) { body.textContent = 'まだ だれも のっていないよ。いちばんのりを めざそう！'; fitPanel(); return; }
+      const tbl = document.createElement('table'); tbl.className = 'ranklist';
+      list.slice(0, 10).forEach((row, i) => {
+        const tr = tbl.insertRow(); tr.className = 'top' + (i + 1);
+        const c0 = tr.insertCell(), c1 = tr.insertCell(), c2 = tr.insertCell();
+        c0.className = 'r'; c0.textContent = (i + 1) + '位';
+        c1.textContent = String(row.name || '').slice(0, 10);
+        c2.className = 's'; c2.textContent = Math.floor(Number(row.score) || 0);
+      });
+      body.appendChild(tbl); fitPanel();
+    }).catch(() => { if (state === 'rank') { body.textContent = 'いまは よみこめませんでした'; fitPanel(); } });
+  }
+  // check once whether the ranking can be reached from here; only then show its buttons
+  if (RANK_URL) fetch(RANK_URL).then((r) => r.ok ? r.json() : Promise.reject()).then(() => { rankOK = true; if (state === 'title') renderMedalRow(); }).catch(() => {});
   // the promotion video, played over the game screen from the title
   const pvBox = document.getElementById('pvBox'), pvVideo = document.getElementById('pvVideo');
   function openPV() {
@@ -2600,7 +2664,7 @@ c.save();c.lineJoin=c.lineCap='round';const cx=190;
 
   function jumpPress() {
     initAudio();
-    if (state === 'wardrobe' || state === 'pv') return;
+    if (state === 'wardrobe' || state === 'pv' || state === 'rank') return;
     if (state === 'pause') { resumeGame(); return; }
     if (state === 'title') { chooseMode(modeKey === 'practice' ? 'normal' : modeKey); return; }
     if (state === 'ending' && panel.querySelector('[data-sp]')) return;
@@ -2873,8 +2937,9 @@ c.save();c.lineJoin=c.lineCap='round';const cx=190;
       '<div class="hint">' + MODE.name + 'モード</div>' +
       '<div class="hint">ステージ ' + (stageIdx + 1) + ' まで進みました</div>' +
       '<div class="score">スコア ' + score() + '　／　ハイスコア ' + best + '</div>' +
-      (isNew ? '<div class="new">ハイスコア更新！</div>' : '') +
+      (isNew ? '<div class="new">ハイスコア更新！</div>' : '') + rankForm() +
       '<div class="hint"><kbd>スペース</kbd> か タップでモードえらびへ</div>');
+    wireRankForm(stageIdx + 1);
   }
   // "next" button after a stage clear
   const nextBtn = document.getElementById('nextBtn');
@@ -2929,8 +2994,9 @@ c.save();c.lineJoin=c.lineCap='round';const cx=190;
       '<div class="big">伝説のマイちゃん！</div>' +
       '<div class="new">南極のスペシャルステージもクリアしました！</div>' +
       '<div class="score">スコア ' + score() + '　／　ハイスコア ' + best + '</div>' +
-      (isNew ? '<div class="new">ハイスコア更新！</div>' : '') +
+      (isNew ? '<div class="new">ハイスコア更新！</div>' : '') + rankForm() +
       '<div class="hint"><kbd>スペース</kbd> か タップでモードえらびへ</div>', true);
+    wireRankForm(11);
   }
 
   function startSpecial() {
@@ -2948,7 +3014,7 @@ c.save();c.lineJoin=c.lineCap='round';const cx=190;
         ? '<div class="big">むずかしいモード クリア！</div><div class="new">マイちゃんが王冠をゲットしました！</div>'
         : '<div class="big">マイちゃん、ぜんぶクリア！</div><div class="hint">' + MODE.name + 'モードの10ステージを、ぜんぶよけきりました。おつかれさま！</div>') +
       '<div class="score">スコア ' + score() + '　／　ハイスコア ' + best + '</div>' +
-      (isNew ? '<div class="new">ハイスコア更新！</div>' : '') +
+      (isNew ? '<div class="new">ハイスコア更新！</div>' : '') + rankForm() +
       (modeKey === 'hard'
         ? '<div class="hint" style="margin-top:4px">さらにむずかしい スペシャルステージにチャレンジしますか？</div>' +
           '<div class="challenge"><button type="button" class="mode hard" data-sp="yes">チャレンジする！</button><button type="button" class="mode normal" data-sp="no">やめておく</button></div>'
@@ -2956,6 +3022,7 @@ c.save();c.lineJoin=c.lineCap='round';const cx=190;
     const yes = panel.querySelector('[data-sp="yes"]'), no = panel.querySelector('[data-sp="no"]');
     if (yes) yes.addEventListener('click', (e) => { e.stopPropagation(); initAudio(); startSpecial(); });
     if (no) no.addEventListener('click', (e) => { e.stopPropagation(); showTitle(); });
+    wireRankForm(10);
   }
 
   // ---- update obstacles ----
@@ -3273,7 +3340,7 @@ c.save();c.lineJoin=c.lineCap='round';const cx=190;
 
   function drawHud() {
     const th = theme();
-    if (state === 'title' || state === 'ending' || state === 'wardrobe' || state === 'pv') return;   // the ending card shows the score; keep the crown clear
+    if (state === 'title' || state === 'ending' || state === 'wardrobe' || state === 'pv' || state === 'rank') return;   // the ending card shows the score; keep the crown clear
     if (MODE.practice) return;   // practice shows only the jump names when landing
     ctx.textBaseline = 'alphabetic';
     ctx.textAlign = 'left'; ctx.fillStyle = th.hud;
@@ -3382,6 +3449,7 @@ c.save();c.lineJoin=c.lineCap='round';const cx=190;
 
   // ---- input ----
   window.addEventListener('keydown', (e) => {
+    if (e.target && e.target.tagName === 'INPUT') return;
     if (state === 'title' && ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Numpad1', 'Numpad2', 'Numpad3', 'Numpad4'].includes(e.code)) {
       chooseMode(['easy', 'normal', 'hard', 'practice'][Number(e.code.slice(-1)) - 1]); return;
     }
@@ -3394,19 +3462,19 @@ c.save();c.lineJoin=c.lineCap='round';const cx=190;
     if (e.code === 'Space' || e.code === 'ArrowUp') jumpRelease();
   });
   stage.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('button')) return;
+    if (e.target.closest('button, input')) return;
     e.preventDefault(); stage.focus({ preventScroll: true }); jumpPress();
   });
   document.getElementById('tapzone').addEventListener('pointerdown', (e) => { e.preventDefault(); jumpPress(); });
   // upright phone: during play, a tap anywhere on the page (outside the game screen too) makes her jump
-  const MENU_STATES = ['title', 'over', 'ending', 'pause', 'wardrobe', 'pv'];
+  const MENU_STATES = ['title', 'over', 'ending', 'pause', 'wardrobe', 'pv', 'rank'];
   document.addEventListener('pointerdown', (e) => {
     if (stage.contains(e.target) || e.target.closest('button, a, input, select, textarea')) return;
     if (window.innerHeight <= window.innerWidth || MENU_STATES.includes(state)) return;
     e.preventDefault(); jumpPress();
   });
   document.documentElement.style.touchAction = 'manipulation';
-  document.addEventListener('selectstart', (e) => e.preventDefault());
+  document.addEventListener('selectstart', (e) => { if (!(e.target && e.target.closest && e.target.closest('input'))) e.preventDefault(); });
   document.addEventListener('contextmenu', (e) => e.preventDefault());
   window.addEventListener('pointerup', jumpRelease);
   window.addEventListener('pointercancel', jumpRelease);
